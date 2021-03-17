@@ -39,8 +39,8 @@
     #define DEFAULT_X_MAX_RATE                1000.0  // mm/min
     #define DEFAULT_Y_MAX_RATE                1000.0  // mm/min
     #define DEFAULT_Z_MAX_RATE                1000.0  // mm/min
-    #define DEFAULT_A_MAX_RATE                10000.0  // °/min
-    #define DEFAULT_B_MAX_RATE                10000.0  // °/min
+    #define DEFAULT_A_MAX_RATE                1000.0  // °/min
+    #define DEFAULT_B_MAX_RATE                1000.0  // °/min
     #define DEFAULT_X_ACCELERATION            (30.0*60*60) // 30*60*60 mm/min^2 = 30 mm/sec^2
     #define DEFAULT_Y_ACCELERATION            (30.0*60*60) // 30*60*60 mm/min^2 = 30 mm/sec^2
     #define DEFAULT_Z_ACCELERATION            (30.0*60*60) // 30*60*60 mm/min^2 = 30 mm/sec^2
@@ -61,7 +61,7 @@
     #define DEFAULT_SYSTEM_INVERT_MASK        0
     #define DEFAULT_STEPPING_INVERT_MASK      0
     #define DEFAULT_DIRECTION_INVERT_MASK     0
-    #define DEFAULT_STEPPER_IDLE_LOCK_TIME    50      // msec (0-254, 255 keeps steppers enabled)
+    #define DEFAULT_STEPPER_IDLE_LOCK_TIME    255      // msec (0-254, 255 keeps steppers enabled)
     #define DEFAULT_STATUS_REPORT_MASK        1       // MPos enabled
     #define DEFAULT_JUNCTION_DEVIATION        0.01    // mm
     #define DEFAULT_ARC_TOLERANCE             0.001   // mm

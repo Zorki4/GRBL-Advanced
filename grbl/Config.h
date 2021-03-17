@@ -144,7 +144,7 @@
 // After homing, Grbl will set by default the entire machine space into negative space, as is typical
 // for professional CNC machines, regardless of where the limit switches are located. Uncomment this
 // define to force Grbl to always set the machine origin at the homed location despite switch orientation.
-#define HOMING_FORCE_SET_ORIGIN // Uncomment to enable.
+// #define HOMING_FORCE_SET_ORIGIN // Uncomment to enable.
 
 // Number of blocks Grbl executes upon startup. These blocks are stored in EEPROM, where the size
 // and addresses are defined in settings.h. With the current settings, up to 2 startup blocks may
@@ -218,7 +218,7 @@
 // NOTE: If VARIABLE_SPINDLE is enabled(default), this option has no effect as the PWM output and
 // spindle enable are combined to one pin. If you need both this option and spindle speed PWM,
 // uncomment the config option USE_SPINDLE_DIR_AS_ENABLE_PIN below.
-//#define INVERT_SPINDLE_ENABLE_PIN // Default disabled. Uncomment to enable.
+#define INVERT_SPINDLE_ENABLE_PIN // Default disabled. Uncomment to enable.
 
 
 // Inverts the selected coolant pin from low-disabled/high-enabled to low-enabled/high-disabled. Useful
@@ -347,7 +347,7 @@
 // enable pin will output 5V for maximum RPM with 256 intermediate levels and 0V when disabled.
 // NOTE: IMPORTANT for Arduino Unos! When enabled, the Z-limit pin D11 and spindle enable pin D12 switch!
 // The hardware PWM output on pin D11 is required for variable spindle output voltages.
-#define VARIABLE_SPINDLE // Default enabled. Comment to disable.
+//#define VARIABLE_SPINDLE // Default enabled. Comment to disable.
 
 
 // Used by variable spindle output only. This forces the PWM output to a minimum duty cycle when enabled.
@@ -596,15 +596,38 @@
 // Backlash Compensation
 #define ENABLE_BACKLASH_COMPENSATION
 
+// NOTE: This feature requires approximately 400 bytes of flash. Certain configurations can
+// run out of flash to fit on an Arduino 328p/Uno. Only X and Y axes are supported. Variable
+// spindle/laser mode IS supported, but only for one config option. Core XY, spindle direction
+// pin, and M7 mist coolant are disabled/not supported.
+ #define ENABLE_DUAL_AXIS	// Default disabled. Uncomment to enable.
 
-/* ---------------------------------------------------------------------------------------
-   OEM Single File Configuration Option
+// To prevent the homing cycle from racking the dual axis, when one limit triggers before the
+// other due to switch failure or noise, the homing cycle will automatically abort if the second
+// motor's limit switch does not trigger within the three distance parameters defined below.
+// Axis length percent will automatically compute a fail distance as a percentage of the max
+// travel of the other non-dual axis, i.e. if dual axis select is X_AXIS at 5.0%, then the fail
+// distance will be computed as 5.0% of y-axis max travel. Fail distance max and min are the
+// limits of how far or little a valid fail distance is.
+#define DUAL_AXIS_HOMING_FAIL_AXIS_LENGTH_PERCENT  5.0  // Float (percent)
+#define DUAL_AXIS_HOMING_FAIL_DISTANCE_MAX  25.0  // Float (mm)
+#define DUAL_AXIS_HOMING_FAIL_DISTANCE_MIN  2.5  // Float (mm)
 
-   Instructions: Paste the cpu_map and default setting definitions below without an enclosing
-   #ifdef. Comment out the CPU_MAP_xxx and DEFAULT_xxx defines at the top of this file, and
-   the compiler will ignore the contents of defaults.h and cpu_map.h and use the definitions
-   below.
-*/
+// NOT USED************************************************************************************
+// NOTE: Arduino CNC Shield Clone (Originally Protoneer v3.0) has A.STP and A.DIR wired to
+// D12 and D13, respectively. With the limit pins and stepper enable pin on this same port,
+// the spindle enable pin had to be moved and spindle direction pin deleted. The spindle
+// enable pin now resides on A3, replacing coolant enable. Coolant enable is bumped over to
+// pin A4. Spindle enable is used far more and this pin setup helps facilitate users to
+// integrate this feature without arguably too much work.
+// Variable spindle (i.e. laser mode) does NOT work with this shield as configured. While
+// variable spindle technically can work with this shield, it requires too many changes for
+// most user setups to accomodate. It would best be implemented by sharing all limit switches
+// on pins D9/D10 (as [X1,Z]/[X2,Y] or [X,Y2]/[Y1,Z]), home each axis independently, and
+// updating lots of code to ensure everything is running correctly.
+// #define DUAL_AXIS_CONFIG_CNC_SHIELD_CLONE  // Uncomment to select. Comment other configs.
+
+
 
 // Paste CPU_MAP definitions here.
 

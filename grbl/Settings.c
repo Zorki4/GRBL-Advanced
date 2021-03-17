@@ -397,7 +397,7 @@ uint8_t Settings_StoreGlobalSetting(uint8_t parameter, float value)
         switch(parameter)
         {
         case 0:
-            //settings.system_flags = int_value;
+            settings.system_flags = int_value;
             break;
 
         case 1:

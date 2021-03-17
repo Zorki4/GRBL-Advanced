@@ -23,7 +23,7 @@
 #define LIMITS_H
 
 #include <stdint.h>
-
+#include <stdlib.h>
 
 // Initialize the limits module
 void Limits_Init(void);

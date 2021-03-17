@@ -59,12 +59,14 @@
 #define Z_STEP_BIT                  2
 #define A_STEP_BIT                  3
 #define B_STEP_BIT                  4
+#define D_STEP_BIT                  5
 
 #define X_DIRECTION_BIT             0
 #define Y_DIRECTION_BIT             1
 #define Z_DIRECTION_BIT             2
 #define A_DIRECTION_BIT             3
 #define B_DIRECTION_BIT             4
+#define D_DIRECTION_BIT             5
 
 #define X1_LIMIT_BIT                0
 #define Y1_LIMIT_BIT                1

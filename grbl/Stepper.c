@@ -87,6 +87,9 @@ typedef struct
     uint32_t steps[N_AXIS];
     uint32_t step_event_count;
     uint8_t direction_bits;
+    #ifdef ENABLE_DUAL_AXIS
+    uint8_t direction_bits_dual;
+    #endif
     uint8_t is_pwm_rate_adjusted; // Tracks motions that require constant laser power/rate
 } Stepper_Block_t;
 
@@ -118,6 +121,10 @@ typedef struct
     uint8_t step_pulse_time;  // Step pulse reset time after step rise
     uint8_t step_outbits;         // The next stepping-bits to be output
     uint8_t dir_outbits;
+    #ifdef ENABLE_DUAL_AXIS
+    uint8_t step_outbits_dual;
+    uint8_t dir_outbits_dual;
+    #endif
     uint32_t steps[N_AXIS];
 
     uint16_t step_count;       // Steps remaining in line segment motion
@@ -172,6 +179,10 @@ static uint8_t segment_next_head;
 // Step and direction port invert masks.
 static uint8_t step_port_invert_mask;
 static uint8_t dir_port_invert_mask;
+#ifdef ENABLE_DUAL_AXIS
+static uint8_t step_port_invert_mask_dual;
+static uint8_t dir_port_invert_mask_dual;
+#endif
 
 // Pointers for the step segment being prepped from the planner buffer. Accessed only by the
 // main program. Pointers may be planning segments or planner blocks ahead of what being executed.
@@ -254,6 +265,7 @@ void Stepper_WakeUp(void)
     // Initialize stepper output bits to ensure first ISR call does not step.
     //st.step_outbits = step_port_invert_mask;
     st.step_outbits = 0;
+    st.step_outbits_dual = 0;
 
     // Enable Stepper Driver Interrupt
     TIM_Cmd(TIM9, ENABLE);
@@ -384,6 +396,21 @@ void Stepper_MainISR(void)
         }
 
     }
+    #ifdef ENABLE_DUAL_AXIS
+        if(st.step_outbits_dual & (1<<D_STEP_BIT))
+        {
+        if(step_port_invert_mask_dual & (1<<D_STEP_BIT))
+        {
+            // Low pulse
+            GPIO_ResetBits(GPIO_STEP_D_PORT, GPIO_STEP_D_PIN);
+        }
+        else
+        {
+            // High pulse
+            GPIO_SetBits(GPIO_STEP_D_PORT, GPIO_STEP_D_PIN);
+        }
+        }
+    #endif
 #endif
     if(st.step_outbits & (1<<Z_STEP_BIT))
     {
@@ -475,6 +502,9 @@ void Stepper_MainISR(void)
             }
 
             st.dir_outbits = st.exec_block->direction_bits ^ dir_port_invert_mask;
+            #ifdef ENABLE_DUAL_AXIS
+            st.dir_outbits_dual = st.exec_block->direction_bits_dual ^ dir_port_invert_mask_dual;
+            #endif
 
             // Set the direction pins directly here to make sure that the signal is valid when stepping the steppers
             // Some driver e.g. require a setup time of a few us.
@@ -495,6 +525,16 @@ void Stepper_MainISR(void)
             {
                 GPIO_ResetBits(GPIO_DIR_Y_PORT, GPIO_DIR_Y_PIN);
             }
+            #ifdef ENABLE_DUAL_AXIS
+            if(st.dir_outbits_dual & (1<<D_DIRECTION_BIT))
+            {
+                GPIO_SetBits(GPIO_DIR_D_PORT, GPIO_DIR_D_PIN);
+            }
+            else
+            {
+                GPIO_ResetBits(GPIO_DIR_D_PORT, GPIO_DIR_D_PIN);
+            }
+            #endif
 #endif
             if(st.dir_outbits & (1<<Z_DIRECTION_BIT))
             {
@@ -569,6 +609,9 @@ void Stepper_MainISR(void)
 
     // Reset step out bits.
     st.step_outbits = 0;
+    #ifdef ENABLE_DUAL_AXIS
+    st.step_outbits_dual = 0;
+    #endif
 
     // Execute step displacement profile by Bresenham line algorithm
     st.counter_x += st.steps[X_AXIS];
@@ -596,6 +639,9 @@ void Stepper_MainISR(void)
     if(st.counter_y > st.exec_block->step_event_count)
     {
         st.step_outbits |= (1<<Y_STEP_BIT);
+        #ifdef ENABLE_DUAL_AXIS
+        st.step_outbits_dual = (1<<D_STEP_BIT);
+        #endif
         st.counter_y -= st.exec_block->step_event_count;
 
         if(st.exec_segment->backlash_motion == 0)
@@ -672,10 +718,14 @@ void Stepper_MainISR(void)
     }
 
     // During a homing cycle, lock out and prevent desired axes from moving.
-    if(sys.state == STATE_HOMING)
+    if (sys.state == STATE_HOMING)
     {
-        st.step_outbits &= sys.homing_axis_lock;
+    st.step_outbits &= sys.homing_axis_lock;
+    #ifdef ENABLE_DUAL_AXIS
+    st.step_outbits_dual &= sys.homing_axis_lock_dual;
+    #endif
     }
+
 
     st.step_count--; // Decrement step events count
     if(st.step_count == 0)
@@ -722,6 +772,16 @@ void Stepper_PortResetISR(void)
     {
         GPIO_ResetBits(GPIO_STEP_Y_PORT, GPIO_STEP_Y_PIN);
     }
+    #ifdef ENABLE_DUAL_AXIS
+    if(step_port_invert_mask_dual & (1<<D_STEP_BIT))
+    {
+        GPIO_SetBits(GPIO_STEP_D_PORT, GPIO_STEP_D_PIN);
+    }
+    else
+    {
+        GPIO_ResetBits(GPIO_STEP_D_PORT, GPIO_STEP_D_PIN);
+    }
+    #endif
 #endif
 
     // Z
@@ -776,6 +836,13 @@ void Stepper_GenerateStepDirInvertMasks(void)
             dir_port_invert_mask |= Settings_GetDirectionPinMask(idx);
         }
     }
+    #ifdef ENABLE_DUAL_AXIS
+    step_port_invert_mask_dual = 0;
+    dir_port_invert_mask_dual = 0;
+    // NOTE: Dual axis invert uses the N_AXIS bit to set step and direction invert pins.
+    if (BIT_IS_TRUE(settings.step_invert_mask,BIT(Y_AXIS))) { step_port_invert_mask_dual = (1<<D_STEP_BIT); }
+    if (BIT_IS_TRUE(settings.dir_invert_mask,BIT(Y_AXIS))) { dir_port_invert_mask_dual = (1<<D_DIRECTION_BIT); }
+    #endif
 }
 
 
@@ -797,6 +864,7 @@ void Stepper_Reset(void)
 
     Stepper_GenerateStepDirInvertMasks();
     st.dir_outbits = dir_port_invert_mask; // Initialize direction bits to default.
+    st.dir_outbits_dual = dir_port_invert_mask_dual;
 
     // Initialize step and direction port pins.
     // Reset Step Pins
@@ -807,6 +875,9 @@ void Stepper_Reset(void)
     GPIO_ResetBits(GPIO_DIR_X_PORT, GPIO_DIR_X_PIN);
 #if !defined(LATHE_MODE)
     GPIO_ResetBits(GPIO_DIR_Y_PORT, GPIO_DIR_Y_PIN);
+    #ifdef ENABLE_DUAL_AXIS
+    GPIO_ResetBits(GPIO_DIR_D_PORT, GPIO_DIR_D_PIN);
+    #endif
 #endif
     GPIO_ResetBits(GPIO_DIR_Z_PORT, GPIO_DIR_Z_PIN);
     GPIO_ResetBits(GPIO_DIR_A_PORT, GPIO_DIR_A_PIN);
@@ -943,7 +1014,7 @@ void Stepper_PrepareBuffer(void)
             }
             else
             {
-                // Load the Bresenham stepping data for the block.
+                // Load the Bresenham  data for the block.
                 prep.st_block_index = Stepper_NextBlockIndex(prep.st_block_index);
 
                 // Prepare and copy Bresenham algorithm segment data from the new planner block, so that
@@ -951,6 +1022,16 @@ void Stepper_PrepareBuffer(void)
                 // segment buffer finishes the prepped block, but the stepper ISR is still executing it.
                 st_prep_block = &st_block_buffer[prep.st_block_index];
                 st_prep_block->direction_bits = pl_block->direction_bits;
+
+                #ifdef ENABLE_DUAL_AXIS
+                if (st_prep_block->direction_bits & (1<<Y_DIRECTION_BIT))
+                {
+                st_prep_block->direction_bits_dual = (1<<D_DIRECTION_BIT);
+                }
+                else { st_prep_block->direction_bits_dual = 0; }
+                #endif
+
+
 
                 uint8_t idx;
                 // With AMASS enabled, simply bit-shift multiply all Bresenham data by the max AMASS
